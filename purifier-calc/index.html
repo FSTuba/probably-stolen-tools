@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>淨水器試算器</title>
+<style>
+:root{
+  --bg:#f6f6f4;--surface:#fcfcfb;--border:#e4e3df;--text:#0b0b0b;--text2:#52514e;--muted:#8a8984;
+  --accent:#2a78d6;--accent-soft:#e6f0fc;--good:#1b8a5a;--warn:#b86e00;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121211;--surface:#1a1a19;--border:#2f2f2d;--text:#f0efec;--text2:#c3c2b7;--muted:#8d8c85;
+  --accent:#3987e5;--accent-soft:#1b2a3d;--good:#3fbf85;--warn:#e0a03a;
+}}
+:root[data-theme="dark"]{
+  --bg:#121211;--surface:#1a1a19;--border:#2f2f2d;--text:#f0efec;--text2:#c3c2b7;--muted:#8d8c85;
+  --accent:#3987e5;--accent-soft:#1b2a3d;--good:#3fbf85;--warn:#e0a03a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 system-ui,-apple-system,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:17px;margin:0 0 14px}
+.sub{color:var(--text2);margin:0 0 20px;font-size:13px}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--text2)}
+input{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;width:100%;font-variant-numeric:tabular-nums}
+input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.seg{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.seg button{font:inherit;font-size:13px;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:999px;padding:5px 11px;cursor:pointer;font-variant-numeric:tabular-nums}
+.seg button small{color:var(--muted);margin-left:4px;font-size:11px}
+.seg button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.seg button[aria-pressed="true"] small{color:#ffffffcc}
+.out{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}
+.stat{border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.stat .k{font-size:12px;color:var(--text2)}
+.stat .v{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+.stat .v .x{font-size:15px;font-weight:500;color:var(--warn);margin-left:4px}
+.detail{margin-top:12px;font-size:12.5px;color:var(--text2);font-variant-numeric:tabular-nums}
+.tablewrap{max-height:520px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-top:14px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:13.5px}
+th,td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+th{position:sticky;top:0;background:var(--surface);color:var(--text2);font-weight:600;font-size:12.5px}
+td.any{color:var(--good)}
+.note{font-size:12.5px;color:var(--text2);margin-top:10px}
+footer{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <h1>淨水器試算器</h1>
+  <p class="sub">簡化公式：<code>去除量 = 31.25 ml × 體積加成 × (髒污加成 + 效率/100%)</code>，體積加成 = 1 + min(體積, 10000 ml) × 0.00012（範圍 1 ~ 2.2）</p>
+
+  <section>
+    <h2>試算器</h2>
+    <div class="grid">
+      <label>體積 (ml)<input id="c-vol" type="number" min="1" step="1" value="6000"></label>
+      <label>初始純度 (%)<input id="c-pur" type="number" min="0" max="100" step="0.01" value="90"></label>
+      <label>效率 (%)<input id="c-eff" type="number" step="1" value="0"></label>
+    </div>
+    <label style="margin-top:12px">質量上限<div class="seg" id="c-cap"></div></label>
+    <div class="out">
+      <div class="stat"><div class="k">去除量</div><div class="v" id="o-rem">–</div></div>
+      <div class="stat"><div class="k">結果純度</div><div class="v" id="o-pur">–</div></div>
+    </div>
+    <div class="detail" id="o-detail"></div>
+  </section>
+
+  <section>
+    <h2>目標純度對照表</h2>
+    <div class="grid">
+      <label>目標純度 (%)<input id="t-target" type="number" min="0" max="100" step="0.01" value="99"></label>
+      <label>效率 (%)<input id="t-eff" type="number" step="1" value="0"></label>
+      <label>體積起 (ml)<input id="t-from" type="number" min="50" step="50" value="50"></label>
+      <label>體積迄 (ml)<input id="t-to" type="number" min="50" step="50" value="10000"></label>
+    </div>
+    <p class="note" id="t-note"></p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>體積 (ml)</th><th>體積加成</th><th>一晚可達標的最低初始純度</th><th>該純度下去除量</th></tr></thead>
+      <tbody id="t-body"></tbody>
+    </table></div>
+  </section>
+
+  <footer>數值依社群逆向模型（build 26337366）簡化而來，忽略整數截斷；假設雜質量 = 體積 × (1 − 純度)。僅供參考。</footer>
+</main>
+<script>
+const CAPS=[[99,"Q<15"],[99.15,"Q≥15"],[99.35,"Q≥25"],[99.65,"Q≥50"],[99.8,"Q≥75"],[99.9,"Q≥100"],[100,"Q≥200"]];
+const CURVE=[[98,1],[94,2],[88.5,5],[80,10],[62.5,15],[37.5,20]];
+function dirt(p){
+  if(p>=CURVE[0][0])return CURVE[0][1];
+  for(let i=1;i<CURVE.length;i++){const[p1,b1]=CURVE[i-1],[p2,b2]=CURVE[i];if(p>=p2)return b1+(p1-p)/(p1-p2)*(b2-b1)}
+  return 20;
+}
+const volBonus=v=>1+Math.min(v,10000)*0.00012;
+const multi=(p,eff)=>Math.max(0,dirt(p)+eff/100);
+const budget=(v,p,eff)=>31.25*volBonus(v)*multi(p,eff);
+function calc(v,p,eff,cap){
+  const b=budget(v,p,eff),nonwater=v*(1-p/100),removable=Math.max(0,nonwater-v*(1-cap/100));
+  const removed=Math.min(b,removable);
+  return{b,removed,overflow:b-removed,capped:b>removable+1e-9,
+    result:p+removed/v*100,uncapped:Math.min(100,p+b/v*100)};
+}
+const pct=x=>(Math.round(x*100)/100).toString()+"%";
+const ml=x=>x.toFixed(2)+" ml";
+const num=(id,d)=>{const n=parseFloat(document.getElementById(id).value);return Number.isFinite(n)?n:d};
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+
+let cap=99;
+const capBox=document.getElementById("c-cap");
+CAPS.forEach(([c,q])=>{const b=document.createElement("button");b.type="button";b.dataset.cap=c;
+  b.innerHTML=`${c}%<small>${q}</small>`;b.onclick=()=>{cap=c;renderCalc()};capBox.appendChild(b)});
+
+function renderCalc(){
+  capBox.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.cap===cap));
+  const v=Math.max(1,Math.round(num("c-vol",6000))),p=clamp(num("c-pur",90),0,100),eff=Math.round(num("c-eff",0));
+  const r=calc(v,p,eff,cap);
+  document.getElementById("o-rem").innerHTML=ml(r.removed)+(r.capped&&r.overflow>0.005?`<span class="x">(+${ml(r.overflow)})</span>`:"");
+  document.getElementById("o-pur").innerHTML=pct(r.result)+(r.capped&&r.uncapped-r.result>0.005?`<span class="x">(${pct(r.uncapped)})</span>`:"");
+  document.getElementById("o-detail").textContent=
+    `體積加成 ×${volBonus(v).toFixed(4)}　髒污加成 ${dirt(p).toFixed(3)}　髒污及效率加成 ×${multi(p,eff).toFixed(3)}　理論去除量 ${ml(r.b)}　雜質 ${ml(v*(1-p/100))}`;
+}
+
+function renderTable(){
+  const target=clamp(num("t-target",99),0,100),eff=Math.round(num("t-eff",0));
+  let from=Math.max(50,Math.round(num("t-from",50)/50)*50),to=Math.max(from,Math.round(num("t-to",10000)/50)*50);
+  to=Math.min(to,from+50*2000);
+  const capTier=CAPS.find(([c])=>c>=target-1e-9)||CAPS[CAPS.length-1];
+  document.getElementById("t-note").textContent=`需要質量上限 ≥ ${capTier[0]}%（${capTier[1]}）。「最低初始純度」指從該純度到目標之間任一起點都能一晚達標。`;
+  const tBp=Math.round(target*100),rows=[];
+  for(let v=from;v<=to;v+=50){
+    let lo=tBp;
+    for(let bp=tBp-1;bp>=0;bp--){const p=bp/100;if(budget(v,p,eff)+1e-9>=v*(target-p)/100)lo=bp;else break}
+    const p=lo/100,rem=v*(target-p)/100;
+    rows.push(`<tr><td>${v.toLocaleString()}</td><td>×${volBonus(v).toFixed(3)}</td>`+
+      (lo===0?`<td class="any">任意（0%）</td>`:`<td>${pct(p)}</td>`)+`<td>${ml(rem)}</td></tr>`);
+  }
+  document.getElementById("t-body").innerHTML=rows.join("");
+}
+["c-vol","c-pur","c-eff"].forEach(id=>document.getElementById(id).addEventListener("input",renderCalc));
+["t-target","t-eff","t-from","t-to"].forEach(id=>document.getElementById(id).addEventListener("input",renderTable));
+renderCalc();renderTable();
+</script>
+</body>
+</html>
