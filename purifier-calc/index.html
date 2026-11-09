@@ -45,21 +45,54 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font
 th,td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
 th{position:sticky;top:0;background:var(--surface);color:var(--text2);font-weight:600;font-size:12.5px}
 td.any{color:var(--good)}
+@media (max-width:480px){th,td{padding:7px 6px;font-size:12.5px}th{white-space:normal}.tag{display:none}}
 .note{font-size:12.5px;color:var(--text2);margin-top:10px}
+.formula{font-size:16px;margin:0 0 10px;padding:10px 12px;background:var(--accent-soft);border-radius:8px}
+.howto{margin:0;padding-left:20px;color:var(--text2);font-size:13.5px}
+.howto li{margin:6px 0}.howto b{color:var(--text)}
+.tablewrap.mini{max-height:none;margin:8px 0 4px;max-width:420px}
+.tablewrap.mini td,.tablewrap.mini th{padding:6px 8px}
+.tablewrap.mini td:first-child,.tablewrap.mini th:first-child{text-align:left}
+tr.hl td{background:var(--accent-soft);font-weight:600}
+.tag{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:0 6px;margin-right:6px}
 footer{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
 <main>
   <h1>淨水器試算器</h1>
-  <p class="sub">簡化公式：<code>去除量 = 31.25 ml × 體積加成 × (髒污加成 + 效率/100%)</code>，體積加成 = 1 + min(體積, 10000 ml) × 0.00012（範圍 1 ~ 2.2）</p>
+  <p class="sub">《Probably Stolen》淨水器一晚能去除多少雜質、最後能到多純。</p>
+
+  <section>
+    <h2>怎麼算</h2>
+    <p class="formula">每晚去除量 = <b>31.25 ml</b> × <b>體積加成</b> × <b>(100% + 髒污加成 + 性能)</b></p>
+    <ul class="howto">
+      <li><b>體積加成</b>：容器每 1000 ml +12%，10000 ml 封頂（×1 ~ ×2.2）。</li>
+      <li><b>髒污加成</b>：水越髒、加成越多；同一段內依純度線性變化：
+        <div class="tablewrap mini"><table>
+          <thead><tr><th>初始純度</th><th>每少 1% 純度</th><th>段尾累計</th></tr></thead>
+          <tbody>
+            <tr><td>98% 以上</td><td>無加成</td><td>+0%</td></tr>
+            <tr><td>98% → 94%</td><td>+25%</td><td>+100%</td></tr>
+            <tr><td>94% → 88.5%</td><td>+54.5%</td><td>+400%</td></tr>
+            <tr><td>88.5% → 80%</td><td>+58.8%</td><td>+900%</td></tr>
+            <tr><td>80% → 62.5%</td><td>+28.6%</td><td>+1400%</td></tr>
+            <tr><td>62.5% → 37.5%</td><td>+20%</td><td>+1900%</td></tr>
+            <tr><td>37.5% 以下</td><td>封頂</td><td>+1900%</td></tr>
+          </tbody>
+        </table></div>
+      </li>
+      <li><b>性能</b>：裝上模組的性能總和，直接加進括號裡（性能 100% = 多一份基礎去除量）。</li>
+      <li><b>質量上限</b>：由模組質量決定，結果純度不會超過上限，超出的去除量會浪費掉。</li>
+    </ul>
+  </section>
 
   <section>
     <h2>試算器</h2>
     <div class="grid">
       <label>體積 (ml)<input id="c-vol" type="number" min="1" step="1" value="6000"></label>
       <label>初始純度 (%)<input id="c-pur" type="number" min="0" max="100" step="0.01" value="90"></label>
-      <label>效率 (%)<input id="c-eff" type="number" step="1" value="0"></label>
+      <label>性能 (%)<input id="c-eff" type="number" step="1" value="0"></label>
     </div>
     <label style="margin-top:12px">質量上限<div class="seg" id="c-cap"></div></label>
     <div class="out">
@@ -73,21 +106,22 @@ footer{font-size:12px;color:var(--muted)}
     <h2>目標純度對照表</h2>
     <div class="grid">
       <label>目標純度 (%)<input id="t-target" type="number" min="0" max="100" step="0.01" value="99"></label>
-      <label>效率 (%)<input id="t-eff" type="number" step="1" value="0"></label>
+      <label>性能 (%)<input id="t-eff" type="number" step="1" value="0"></label>
       <label>體積起 (ml)<input id="t-from" type="number" min="50" step="50" value="50"></label>
       <label>體積迄 (ml)<input id="t-to" type="number" min="50" step="50" value="10000"></label>
     </div>
     <p class="note" id="t-note"></p>
     <div class="tablewrap"><table>
-      <thead><tr><th>體積 (ml)</th><th>體積加成</th><th>一晚可達標的最低初始純度</th><th>該純度下去除量</th></tr></thead>
+      <thead><tr><th>體積 (ml)</th><th>體積加成</th><th>最低初始純度</th><th>需去除量</th></tr></thead>
       <tbody id="t-body"></tbody>
     </table></div>
   </section>
 
-  <footer>數值依社群逆向模型（build 26337366）簡化而來，忽略整數截斷；假設雜質量 = 體積 × (1 − 純度)。僅供參考。</footer>
+  <footer>數值依社群逆向模型（build 26337366）簡化而來，純度上限已依最新更新各檔 +0.01%；忽略整數截斷；假設雜質量 = 體積 × (1 − 純度)。僅供參考。</footer>
 </main>
 <script>
-const CAPS=[[99,"Q<15"],[99.15,"Q≥15"],[99.35,"Q≥25"],[99.65,"Q≥50"],[99.8,"Q≥75"],[99.9,"Q≥100"],[100,"Q≥200"]];
+const CAPS=[[99.01,"Q<15"],[99.16,"Q≥15"],[99.36,"Q≥25"],[99.66,"Q≥50"],[99.81,"Q≥75"],[99.91,"Q≥100"],[100,"Q≥200"]];
+const COMMON=new Set([2000,3000,6000,10000]);
 const CURVE=[[98,1],[94,2],[88.5,5],[80,10],[62.5,15],[37.5,20]];
 function dirt(p){
   if(p>=CURVE[0][0])return CURVE[0][1];
@@ -108,7 +142,7 @@ const ml=x=>x.toFixed(2)+" ml";
 const num=(id,d)=>{const n=parseFloat(document.getElementById(id).value);return Number.isFinite(n)?n:d};
 const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
 
-let cap=99;
+let cap=99.01;
 const capBox=document.getElementById("c-cap");
 CAPS.forEach(([c,q])=>{const b=document.createElement("button");b.type="button";b.dataset.cap=c;
   b.innerHTML=`${c}%<small>${q}</small>`;b.onclick=()=>{cap=c;renderCalc()};capBox.appendChild(b)});
@@ -120,7 +154,7 @@ function renderCalc(){
   document.getElementById("o-rem").innerHTML=ml(r.removed)+(r.capped&&r.overflow>0.005?`<span class="x">(+${ml(r.overflow)})</span>`:"");
   document.getElementById("o-pur").innerHTML=pct(r.result)+(r.capped&&r.uncapped-r.result>0.005?`<span class="x">(${pct(r.uncapped)})</span>`:"");
   document.getElementById("o-detail").textContent=
-    `體積加成 ×${volBonus(v).toFixed(4)}　髒污加成 ${dirt(p).toFixed(3)}　髒污及效率加成 ×${multi(p,eff).toFixed(3)}　理論去除量 ${ml(r.b)}　雜質 ${ml(v*(1-p/100))}`;
+    `體積加成 ×${volBonus(v).toFixed(3)}　髒污加成 +${((dirt(p)-1)*100).toFixed(1)}%　括號合計 ${(multi(p,eff)*100).toFixed(1)}%　理論去除量 ${ml(r.b)}　原有雜質 ${ml(v*(1-p/100))}`;
 }
 
 function renderTable(){
@@ -134,8 +168,9 @@ function renderTable(){
     let lo=tBp;
     for(let bp=tBp-1;bp>=0;bp--){const p=bp/100;if(budget(v,p,eff)+1e-9>=v*(target-p)/100)lo=bp;else break}
     const p=lo/100,rem=v*(target-p)/100;
-    rows.push(`<tr><td>${v.toLocaleString()}</td><td>×${volBonus(v).toFixed(3)}</td>`+
-      (lo===0?`<td class="any">任意（0%）</td>`:`<td>${pct(p)}</td>`)+`<td>${ml(rem)}</td></tr>`);
+    const hl=COMMON.has(v);
+    rows.push(`<tr${hl?' class="hl"':''}><td>${hl?'<span class="tag">常用</span>':''}${v.toLocaleString()}</td><td>×${volBonus(v).toFixed(3)}</td>`+
+      (lo===0?`<td class="any">任意</td>`:`<td>${pct(p)}</td>`)+`<td>${ml(rem)}</td></tr>`);
   }
   document.getElementById("t-body").innerHTML=rows.join("");
 }
