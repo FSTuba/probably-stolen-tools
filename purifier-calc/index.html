@@ -23,6 +23,8 @@ main{max-width:860px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:22px;margin:0 0 4px}
 h2{font-size:17px;margin:0 0 14px}
 .sub{color:var(--text2);margin:0 0 20px;font-size:13px}
+.sub a{color:var(--accent);text-decoration:none;white-space:nowrap}
+.sub a:hover{text-decoration:underline}
 code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:var(--accent-soft);padding:1px 5px;border-radius:4px}
 section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
@@ -61,7 +63,7 @@ footer{font-size:12px;color:var(--muted)}
 <body>
 <main>
   <h1>淨水器試算器</h1>
-  <p class="sub">《Probably Stolen》淨水器一晚能去除多少雜質、最後能到多純。</p>
+  <p class="sub">《Probably Stolen》淨水器一晚能去除多少雜質、最後能到多純。 <a href="../purifier-curve/">看純度曲線 →</a></p>
 
   <section>
     <h2>怎麼算</h2>
