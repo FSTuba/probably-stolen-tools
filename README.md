@@ -5,6 +5,7 @@
 | 工具 | 路徑 |
 |---|---|
 | 淨水器試算器 | [`purifier-calc/`](purifier-calc/index.html) |
+| 淨水器純度曲線 | [`purifier-curve/`](purifier-curve/index.html) |
 
 ## 淨水器公式（簡化）
 

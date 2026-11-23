@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>淨水器純度曲線</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: 單欄工具頁，控制列 → 結果摘要 → 正方形固定座標圖表 */
+:root{
+  --bg:#f2f6f7; --panel:#ffffff; --fg:#14262c; --muted:#5b7279; --line:#d3dfe2;
+  --accent:#0f6f8c; --accent2:#d9622b; --grid:#14262c; --grid-a:.08; --inv:#d9622b; --ok:#1f9d6b;
+  --w-pure:#39b8f0; --w-hq:#5fc9c0; --w-base:#a9c3cc; --w-ghost:#9a8fd0; --w-rust:#c27a45; --w-gutter:#7d7550;
+  --band-a:.22;
+  --f-display:"Space Grotesk","Noto Sans TC",system-ui,sans-serif;
+  --f-body:"Noto Sans TC",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1719; --panel:#142226; --fg:#e2eef0; --muted:#8ea6ac; --line:#26393e;
+  --accent:#6fd0e6; --accent2:#f29a57; --inv:#f29a57; --ok:#4fd39a; --grid:#e2eef0; --grid-a:.07; --band-a:.26; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1719; --panel:#142226; --fg:#e2eef0; --muted:#8ea6ac; --line:#26393e;
+  --accent:#6fd0e6; --accent2:#f29a57; --inv:#f29a57; --ok:#4fd39a; --grid:#e2eef0; --grid-a:.07; --band-a:.26; color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--f-display);font-size:1.6rem;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0;font-size:.9rem}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.ctl{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ctl label,.lab{font-size:.75rem;letter-spacing:.06em;color:var(--muted);font-weight:500}
+.ctl .val{font-family:var(--f-mono);font-size:1.4rem;font-weight:600;color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+select,input[type=number]{font:inherit;font-family:var(--f-mono);background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 8px;width:100%}
+.row input[type=number]{width:110px}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{font:inherit;font-family:var(--f-mono);font-size:.78rem;flex:1;padding:4px 6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+.result{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:6px}
+.ranges{display:flex;flex-direction:column;gap:4px}
+.rg{display:flex;align-items:baseline;gap:10px;font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.rg .n{font-size:1.45rem;font-weight:600;color:var(--ok)}
+.rg .to{color:var(--muted);font-family:var(--f-body);font-size:.9rem}
+.none{color:var(--muted);font-size:1rem}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+svg{display:block;width:100%;max-width:620px;margin:0 auto;height:auto;font-family:var(--f-mono)}
+.readout{font-family:var(--f-mono);font-size:.85rem;color:var(--muted);min-height:1.4em;padding:4px 6px 0;text-align:center}
+.readout b{color:var(--fg)}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;font-size:.8rem;color:var(--muted);padding:8px 6px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:2px;display:inline-block}
+.legend i.ln{height:3px;border-radius:0}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>淨水器純度曲線</h1>
+    <p class="sub">Probably Stolen · 淨水器處理一晚 · X＝初始純度，Y＝結果純度</p>
+  </header>
+
+  <section class="controls">
+    <div class="ctl">
+      <label for="vol">水量（mL）</label>
+      <span class="val" id="volVal">2000</span>
+      <input type="range" id="vol" min="50" max="10000" step="50" value="2000">
+      <div class="row"><input type="number" id="volNum" min="1" step="1" value="2000"></div>
+    </div>
+    <div class="ctl">
+      <label for="perf">性能（%）</label>
+      <span class="val" id="perfVal">+0%</span>
+      <input type="range" id="perf" min="-50" max="200" step="1" value="0">
+      <div class="row"><input type="number" id="perfNum" step="1" value="0"></div>
+    </div>
+    <div class="ctl">
+      <label for="cap">純度上限（Quality）</label>
+      <select id="cap">
+        <option value="99.01" selected>Q&lt;15 → 99.01%</option>
+        <option value="99.16">Q≥15 → 99.16%</option>
+        <option value="99.36">Q≥25 → 99.36%</option>
+        <option value="99.66">Q≥50 → 99.66%</option>
+        <option value="99.81">Q≥75 → 99.81%</option>
+        <option value="99.91">Q≥100 → 99.91%</option>
+        <option value="100">Q≥200 → 100%</option>
+      </select>
+      <span class="lab">X 軸範圍（初始）</span>
+      <div class="seg" id="xr">
+        <button type="button" data-lo="35" aria-pressed="false">35–100</button>
+        <button type="button" data-lo="70" aria-pressed="true">70–100</button>
+        <button type="button" data-lo="90" aria-pressed="false">90–100</button>
+      </div>
+      <span class="lab">Y 軸範圍（結果）</span>
+      <div class="seg" id="yr">
+        <button type="button" data-lo="35" aria-pressed="false">35–100</button>
+        <button type="button" data-lo="70" aria-pressed="true">70–100</button>
+        <button type="button" data-lo="90" aria-pressed="false">90–100</button>
+        <button type="button" data-lo="97" aria-pressed="false">97–100</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="result">
+    <span class="lab" id="resK">一晚可達上限 99.01% 的初始純度</span>
+    <div class="ranges" id="resV"></div>
+  </div>
+
+  <section class="chart">
+    <svg id="svg" viewBox="0 0 640 640" role="img" aria-label="初始純度對結果純度曲線"></svg>
+    <div class="readout" id="readout">滑鼠移到圖上查看數值</div>
+    <div class="legend" id="legend"></div>
+  </section>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const FT=[[98,1],[94,2],[88.5,5],[80,10],[62.5,15],[37.5,20]];
+function factor(p){
+  if(p>=98)return 1;
+  for(let i=1;i<FT.length;i++){const[a,fa]=FT[i-1],[b,fb]=FT[i];if(p>=b)return fa+(fb-fa)*(a-p)/(a-b)}
+  return 20;
+}
+const removal=(p,V,perf)=>31.25*(1+0.00012*Math.min(V,10000))*Math.max(0,factor(p)+perf);
+const night=(p,V,cap,perf)=>p>=cap?p:Math.min(cap,p+100*removal(p,V,perf)/V);
+
+const GRADES=[
+  {name:"純水",lo:99.9,hi:100,c:"--w-pure"},
+  {name:"優質水",lo:99,hi:99.9,c:"--w-hq"},
+  {name:"基礎水",lo:98,hi:99,c:"--w-base"},
+  {name:"幽靈水",lo:96,hi:98,c:"--w-ghost"},
+  {name:"鐵鏽水",lo:90,hi:96,c:"--w-rust"},
+  {name:"溝渠水",lo:0,hi:90,c:"--w-gutter"},
+];
+$("legend").innerHTML=GRADES.map(g=>`<span><i style="background:var(${g.c})"></i>${g.name}</span>`).join("")+
+ `<span><i class="ln" style="background:var(--accent)"></i>初始越高結果越高</span>`+
+ `<span><i class="ln" style="background:var(--inv)"></i>初始越低結果越高</span>`+
+ `<span><i style="background:var(--ok);opacity:.4"></i>可達上限</span>`;
+
+let XLO=70, YLO=70;
+const W=640,H=640,M={l:58,r:22,t:20,b:60};
+const PW=W-M.l-M.r, PH=H-M.t-M.b; // 560 × 560 正方形
+const svg=$("svg"), NS="http://www.w3.org/2000/svg";
+function el(t,a,parent=svg){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);parent.appendChild(e);return e}
+const fmt=x=>x.toFixed(2)+"%";
+const tickStep=span=>span>40?10:span>20?5:span>5?1:0.5;
+
+function reachRanges(V,cap,perf){
+  const out=[];let start=null;const step=0.005;
+  for(let p=0;p<cap+step/2;p+=step){
+    const q=Math.min(p,cap);
+    const ok=q<cap&&night(q,V,cap,perf)>=cap-1e-9;
+    if(ok&&start===null)start=q;
+    if(!ok&&start!==null){out.push([start,q-step]);start=null}
+  }
+  if(start!==null)out.push([start,cap]);
+  return out;
+}
+
+function draw(){
+  const V=Math.max(1,+$("volNum").value||2000), cap=+$("cap").value, perfPct=+$("perfNum").value||0, perf=perfPct/100;
+  $("volVal").textContent=V.toLocaleString(); $("perfVal").textContent=(perfPct>=0?"+":"")+perfPct+"%";
+  const XHI=100, YHI=100;
+  const sx=v=>M.l+(v-XLO)/(XHI-XLO)*PW, sy=v=>M.t+PH-(v-YLO)/(YHI-YLO)*PH;
+  svg.innerHTML="";
+  const defs=el("defs",{});const cp=el("clipPath",{id:"plot"},defs);el("rect",{x:M.l,y:M.t,width:PW,height:PH},cp);
+  const g=el("g",{"clip-path":"url(#plot)"});
+  for(const gr of GRADES){const lo=Math.max(gr.lo,YLO),hi=Math.min(gr.hi,YHI);if(hi<=lo)continue;
+    el("rect",{x:M.l,y:sy(hi),width:PW,height:sy(lo)-sy(hi),fill:`var(${gr.c})`,style:"fill-opacity:var(--band-a)"},g);
+    if(sy(lo)-sy(hi)>16)el("text",{x:M.l+PW-6,y:sy(hi)+14,"text-anchor":"end","font-size":11,fill:`var(${gr.c})`,"font-family":"var(--f-body)","font-weight":700}).textContent=gr.name;}
+  const rr=reachRanges(V,cap,perf);
+  for(const[a,b]of rr){el("rect",{x:sx(a),y:M.t,width:Math.max(0,sx(b)-sx(a)),height:PH,fill:"var(--ok)",style:"fill-opacity:.18"},g);}
+  const xs=tickStep(XHI-XLO), ys=tickStep(YHI-YLO);
+  for(let v=XLO;v<=XHI+1e-9;v+=xs){
+    el("line",{x1:sx(v),x2:sx(v),y1:M.t,y2:M.t+PH,stroke:"var(--grid)",style:"stroke-opacity:var(--grid-a)"});
+    el("text",{x:sx(v),y:M.t+PH+18,"text-anchor":"middle","font-size":11,fill:"var(--muted)"}).textContent=(+v.toFixed(1))+"%";
+  }
+  for(let v=YLO;v<=YHI+1e-9;v+=ys){
+    el("line",{x1:M.l,x2:M.l+PW,y1:sy(v),y2:sy(v),stroke:"var(--grid)",style:"stroke-opacity:var(--grid-a)"});
+    el("text",{x:M.l-8,y:sy(v)+4,"text-anchor":"end","font-size":11,fill:"var(--muted)"}).textContent=(+v.toFixed(1))+"%";
+  }
+  el("rect",{x:M.l,y:M.t,width:PW,height:PH,fill:"none",stroke:"var(--line)"});
+  el("text",{x:M.l+PW/2,y:M.t+PH+44,"text-anchor":"middle","font-size":13,fill:"var(--fg)","font-family":"var(--f-body)"}).textContent="初始純度";
+  el("text",{x:14,y:M.t+PH/2,"text-anchor":"middle","font-size":13,fill:"var(--fg)",transform:`rotate(-90 14 ${M.t+PH/2})`,"font-family":"var(--f-body)"}).textContent="結果純度";
+  el("line",{x1:sx(0),y1:sy(0),x2:sx(100),y2:sy(100),stroke:"var(--muted)","stroke-dasharray":"4 4"},g);
+  if(cap<100)el("line",{x1:M.l,x2:M.l+PW,y1:sy(cap),y2:sy(cap),stroke:"var(--accent2)","stroke-dasharray":"2 3"},g);
+  // curve
+  const N=1400, pts=[];for(let i=0;i<=N;i++){const p0=XLO+(XHI-XLO)*i/N;pts.push([p0,night(p0,V,cap,perf)])}
+  let cur=false,d="";
+  const flush=()=>{if(d)el("path",{d,fill:"none",stroke:cur?"var(--inv)":"var(--accent)","stroke-width":2.6,"stroke-linejoin":"round","stroke-linecap":"round"},g)};
+  const P=i=>sx(pts[i][0]).toFixed(2)+" "+sy(pts[i][1]).toFixed(2);
+  d="M"+P(0);
+  for(let i=1;i<pts.length;i++){
+    const inv=pts[i][1]<pts[i-1][1]-1e-9;
+    if(inv!==cur){flush();d="M"+P(i-1)+"L"+P(i);cur=inv}else d+="L"+P(i);
+  }
+  flush();
+  // hover
+  const vl=el("line",{y1:M.t,y2:M.t+PH,stroke:"var(--fg)","stroke-opacity":.35,visibility:"hidden"});
+  const dot=el("circle",{r:5,fill:"var(--accent)",stroke:"var(--panel)","stroke-width":2,visibility:"hidden"});
+  const hit=el("rect",{x:M.l,y:M.t,width:PW,height:PH,fill:"transparent"});
+  const move=e=>{
+    const r=svg.getBoundingClientRect(), x=(e.clientX-r.left)*W/r.width;
+    const p0=Math.min(XHI,Math.max(XLO,XLO+(x-M.l)/PW*(XHI-XLO))), p1=night(p0,V,cap,perf);
+    vl.setAttribute("x1",sx(p0));vl.setAttribute("x2",sx(p0));vl.setAttribute("visibility","visible");
+    const cy=sy(p1);dot.setAttribute("cx",sx(p0));dot.setAttribute("cy",Math.min(M.t+PH,Math.max(M.t,cy)));dot.setAttribute("visibility","visible");
+    $("readout").innerHTML=`初始 <b>${p0.toFixed(2)}%</b> → 結果 <b>${p1.toFixed(2)}%</b>（${GRADES.find(g=>p1>=g.lo).name}）`;
+  };
+  hit.addEventListener("pointermove",move);hit.addEventListener("pointerdown",move);
+  hit.addEventListener("pointerleave",()=>{vl.setAttribute("visibility","hidden");dot.setAttribute("visibility","hidden")});
+  // result
+  $("resK").textContent=`一晚可達上限 ${cap}% 的初始純度`;
+  $("resV").innerHTML=rr.length
+    ? rr.map(([a,b])=>`<div class="rg"><span class="n">${fmt(a)}</span><span class="to">到</span><span class="n">${fmt(b)}</span></div>`).join("")
+    : `<div class="none">無，這個水量與性能一晚到不了上限</div>`;
+}
+$("vol").addEventListener("input",()=>{$("volNum").value=$("vol").value;draw()});
+$("volNum").addEventListener("input",()=>{const v=+$("volNum").value;if(v>0){$("vol").value=Math.min(10000,Math.max(50,v));draw()}});
+$("perf").addEventListener("input",()=>{$("perfNum").value=$("perf").value;draw()});
+$("perfNum").addEventListener("input",()=>{$("perf").value=Math.min(200,Math.max(-50,+$("perfNum").value||0));draw()});
+$("cap").addEventListener("input",draw);
+function seg(id,set){$(id).addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;set(+b.dataset.lo);
+  $(id).querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));draw()})}
+seg("xr",v=>XLO=v); seg("yr",v=>YLO=v);
+draw();
+</script>
+</body>
+</html>
